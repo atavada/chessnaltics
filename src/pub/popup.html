@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Chessnaltics</title>
+		<link rel="stylesheet" href="styles.css" />
+	</head>
+	<body>
+		<div class="container">
+			<h1>Chessnaltics</h1>
+			<div class="depth-slider-container">
+				<div class="depth-slider-header">
+					<span class="depth-slider-label">Analysis Depth</span>
+					<span class="depth-slider-value" id="depthValue">14</span>
+				</div>
+				<input type="range" id="depthSlider" min="10" max="22" value="14" step="1" />
+				<div class="depth-slider-range">
+					<span>10</span>
+					<span>22</span>
+				</div>
+			</div>
+			<button id="analyze">Auto Analyze: OFF</button>
+		</div>
+		<script src="../js/extension-api.js"></script>
+		<script src="../js/popup.js"></script>
+	</body>
+</html>

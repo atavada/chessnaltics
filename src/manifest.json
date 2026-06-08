@@ -1,0 +1,32 @@
+{
+	"manifest_version": 3,
+	"name": "Chessnaltics",
+	"version": "1.0",
+	"description": "Move your game forward with best analysis.",
+	"permissions": ["activeTab", "storage", "offscreen", "scripting"],
+	"host_permissions": ["*://www.chess.com/*"],
+	"background": {
+		"service_worker": "js/background.js"
+	},
+	"action": {
+		"default_popup": "pub/popup.html",
+		"default_icon": {
+			"16": "res/ext_icon_144.png",
+			"32": "res/ext_icon_144.png",
+			"48": "res/ext_icon_144.png",
+			"128": "res/ext_icon_144.png"
+		}
+	},
+	"icons": {
+		"16": "res/ext_icon_144.png",
+		"32": "res/ext_icon_144.png",
+		"48": "res/ext_icon_144.png",
+		"128": "res/ext_icon_144.png"
+	},
+	"content_scripts": [
+		{
+			"matches": ["*://www.chess.com/*"],
+			"js": ["js/extension-api.js", "js/content.js"]
+		}
+	]
+}
