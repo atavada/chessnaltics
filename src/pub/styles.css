@@ -93,6 +93,62 @@ input[type="range"]::-moz-range-thumb {
   color: #666;
 }
 
+/* Setting Groups */
+.setting-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.setting-label {
+  color: #a8a8a8;
+  font-size: 14px;
+}
+
+.select-wrapper {
+  position: relative;
+}
+
+.styled-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #262421;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 32px 6px 12px;
+  border: 1px solid #3d3b38;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23a8a8a8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.styled-select:hover {
+  border-color: #7fa650;
+}
+
+.styled-select:focus {
+  border-color: #7fa650;
+  box-shadow: 0 0 0 2px rgba(127, 166, 80, 0.25);
+}
+
+.styled-select option {
+  background-color: #262421;
+  color: #fff;
+}
+
+/* Button Group */
+.button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* Button */
 button {
   width: 100%;
@@ -117,4 +173,17 @@ button.active {
 
 button.active:hover {
   background-color: #d44;
+}
+
+.btn-secondary {
+  background-color: transparent;
+  border: 1px solid #3d3b38;
+  color: #a8a8a8;
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+.btn-secondary:hover {
+  background-color: #3d3b38;
+  color: #fff;
 }

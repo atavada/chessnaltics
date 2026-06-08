@@ -16,15 +16,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return undefined;
   }
 
-  analyzer
-    .analyzeFen(message.fen, message.depth)
-    .then((pvs) => {
+  (async () => {
+    try {
+      const pvs = await analyzer.analyzeFen(message.fen, message.depth, message.multiPv);
       sendResponse({ pvs });
-    })
-    .catch((error) => {
+    } catch (error) {
       console.error("Stockfish analysis error:", error);
       sendResponse({ error: error.message });
-    });
+    }
+  })();
 
   return true;
 });

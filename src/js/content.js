@@ -2,12 +2,18 @@ let isAutoAnalyzeEnabled = false;
 let moveObserver = null;
 let previousHighlights = [];
 let currentDepth = 14;
+let currentHighlightStyle = "filled"; // "filled" | "outline" | "off"
+let currentMultiPv = 3;
+let lastPvs = null;
+let lastBoardState = null;
 
-// PV color scheme: rank 1 = green, rank 2 = orange, rank 3 = blue
+// PV color scheme: 5 colors for up to 5 recommendations
 const PV_COLORS = [
-	{ bg: "rgba(59, 130, 246, 0.5)", badge: "#3b82f6" },
-	{ bg: "rgba(245, 158, 11, 0.5)", badge: "#f59e0b" },
-	{ bg: "rgba(255, 49, 49, 0.5)", badge: "#ff4e4eff" },
+	{ bg: "rgba(59, 130, 246, 0.5)", border: "rgba(59, 130, 246, 0.85)", badge: "#3b82f6" },
+	{ bg: "rgba(245, 158, 11, 0.5)", border: "rgba(245, 158, 11, 0.85)", badge: "#f59e0b" },
+	{ bg: "rgba(255, 49, 49, 0.5)", border: "rgba(255, 49, 49, 0.85)", badge: "#ff4e4eff" },
+	{ bg: "rgba(168, 85, 247, 0.5)", border: "rgba(168, 85, 247, 0.85)", badge: "#a855f7" },
+	{ bg: "rgba(20, 184, 166, 0.5)", border: "rgba(20, 184, 166, 0.85)", badge: "#14b8a6" },
 ];
 
 // Inject minimal CSS for badge styling
@@ -63,9 +69,22 @@ function clearHighlights() {
 	previousHighlights = [];
 }
 
+function getHighlightCss(colorScheme, style) {
+	if (style === "outline") {
+		return `border: 3px solid ${colorScheme.border}; background: transparent; box-sizing: border-box; z-index: 0; position: absolute;`;
+	}
+	// Default: filled
+	return `background: ${colorScheme.bg}; z-index: 0; position: absolute;`;
+}
+
 function highlightBestMoves(pvs, boardState) {
 	clearHighlights();
 
+	// Save last state for re-rendering on style change
+	lastPvs = pvs;
+	lastBoardState = boardState;
+
+	if (currentHighlightStyle === "off") return;
 	if (!pvs || pvs.length === 0) return;
 
 	const chessboard = document.querySelector("wc-chess-board");
@@ -121,14 +140,14 @@ function highlightBestMoves(pvs, boardState) {
 		// From-square highlight
 		const fromHighlight = document.createElement("div");
 		fromHighlight.className = `highlight cheat-highlight square-${fromSquare}`;
-		fromHighlight.style.cssText = `background: ${colorScheme.bg}; z-index: 0; position: absolute;`;
+		fromHighlight.style.cssText = getHighlightCss(colorScheme, currentHighlightStyle);
 		chessboard.appendChild(fromHighlight);
 		previousHighlights.push(fromHighlight);
 
 		// To-square highlight with score badge
 		const toHighlight = document.createElement("div");
 		toHighlight.className = `highlight cheat-highlight square-${toSquare}`;
-		toHighlight.style.cssText = `background: ${colorScheme.bg}; z-index: 0; position: absolute;`;
+		toHighlight.style.cssText = getHighlightCss(colorScheme, currentHighlightStyle);
 
 		// Score badge (top-left) — always per-PV
 		const scoreBadge = document.createElement("span");
@@ -240,26 +259,31 @@ function analyzeBoardState() {
 		return;
 	}
 
-	extensionAPI.runtime
-		.sendMessage({
-			action: "analyzeBoard",
-			fen: fen,
-			depth: currentDepth,
-		})
-		.then((analysis) => {
+	(async () => {
+		try {
+			const analysis = await extensionAPI.runtime.sendMessage({
+				action: "analyzeBoard",
+				fen: fen,
+				depth: currentDepth,
+				multiPv: currentMultiPv,
+			});
+
 			if (!isAutoAnalyzeEnabled) return;
 
 			if (analysis && analysis.pvs && analysis.pvs.length > 0) {
 				console.log("Received MultiPV analysis:", analysis.pvs);
 				highlightBestMoves(analysis.pvs, boardState);
 			} else {
+				if (analysis && analysis.error) {
+					console.error("Analysis error from engine:", analysis.error);
+				}
 				clearHighlights();
 			}
-		})
-		.catch((error) => {
+		} catch (error) {
 			console.error("Analysis error:", error);
 			clearHighlights();
-		});
+		}
+	})();
 }
 
 // --- Move observer ---
@@ -322,24 +346,60 @@ extensionAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	if (message.action === "toggleAutoAnalyze") {
 		isAutoAnalyzeEnabled = message.enabled;
 		if (isAutoAnalyzeEnabled) {
-			// Load depth from storage before analyzing
-			extensionAPI.storage.local.get("analysisDepth").then((result) => {
-				currentDepth = result.analysisDepth || 14;
-				setupMoveObserver();
-				analyzeBoardState();
-			});
+			// Load all preferences from storage before analyzing
+			(async () => {
+				try {
+					const result = await extensionAPI.storage.local.get([
+						"analysisDepth",
+						"highlightStyle",
+						"multiPvCount",
+					]);
+					currentDepth = result.analysisDepth || 14;
+					currentHighlightStyle = result.highlightStyle || "filled";
+					currentMultiPv = result.multiPvCount || 3;
+					setupMoveObserver();
+					analyzeBoardState();
+				} catch (error) {
+					console.error("Error loading preferences from storage:", error);
+					// Fall back to defaults and proceed anyway
+					setupMoveObserver();
+					analyzeBoardState();
+				}
+			})();
 		} else {
 			if (moveObserver) {
 				moveObserver.disconnect();
 				moveObserver = null;
 			}
 			clearHighlights();
+			lastPvs = null;
+			lastBoardState = null;
 		}
 		return true;
 	}
 
 	if (message.action === "depthChanged") {
 		currentDepth = message.depth || 14;
+		if (isAutoAnalyzeEnabled) {
+			analyzeBoardState();
+		}
+		return true;
+	}
+
+	if (message.action === "highlightStyleChanged") {
+		currentHighlightStyle = message.style || "filled";
+		// Re-render with existing data — no need to re-analyze
+		if (lastPvs && lastBoardState) {
+			highlightBestMoves(lastPvs, lastBoardState);
+		} else if (currentHighlightStyle === "off") {
+			clearHighlights();
+		}
+		return true;
+	}
+
+	if (message.action === "multiPvChanged") {
+		currentMultiPv = message.count || 3;
+		// Trigger re-analysis with new PV count
 		if (isAutoAnalyzeEnabled) {
 			analyzeBoardState();
 		}

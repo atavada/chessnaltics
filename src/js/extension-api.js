@@ -36,9 +36,10 @@
   global.extensionAPI = {
     raw: api,
     runtime: {
-      getURL: api.runtime.getURL.bind(api.runtime),
+      getURL: api.runtime.getURL ? api.runtime.getURL.bind(api.runtime) : undefined,
       onMessage: api.runtime.onMessage,
       sendMessage: wrapMethod(api.runtime, "sendMessage"),
+      reload: api.runtime.reload ? api.runtime.reload.bind(api.runtime) : undefined,
     },
     storage: {
       local: {

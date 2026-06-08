@@ -20,7 +20,30 @@
 					<span>22</span>
 				</div>
 			</div>
-			<button id="analyze">Auto Analyze: OFF</button>
+			<div class="setting-group">
+				<label class="setting-label" for="highlightStyle">Move Highlight</label>
+				<div class="select-wrapper">
+					<select id="highlightStyle" class="styled-select">
+						<option value="filled">Blok Warna</option>
+						<option value="outline">Outline Warna</option>
+						<option value="off">Off</option>
+					</select>
+				</div>
+			</div>
+			<div class="setting-group">
+				<label class="setting-label" for="multiPvCount">Recommendations</label>
+				<div class="select-wrapper">
+					<select id="multiPvCount" class="styled-select">
+						<option value="1">1</option>
+						<option value="3" selected>3</option>
+						<option value="5">5</option>
+					</select>
+				</div>
+			</div>
+			<div class="button-group">
+				<button id="analyze">Activate</button>
+				<button id="reloadExtension" class="btn-secondary">Reload Extension</button>
+			</div>
 		</div>
 		<script src="../js/extension-api.js"></script>
 		<script src="../js/popup.js"></script>

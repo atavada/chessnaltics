@@ -13,8 +13,9 @@
       this.pendingPvs = [];
     }
 
-    async analyzeFen(fen, depth) {
-      const cacheKey = `${fen}_d${depth || 18}`;
+    async analyzeFen(fen, depth, multiPv) {
+      const pvCount = multiPv || this.multiPvCount;
+      const cacheKey = `${fen}_d${depth || 18}_pv${pvCount}`;
       const cached = this.fenCache.get(cacheKey);
       if (cached) {
         return cached;
@@ -23,7 +24,7 @@
       await this.ensureReady();
 
       return new Promise((resolve, reject) => {
-        this.queue.push({ fen, depth: depth || 18, resolve, reject });
+        this.queue.push({ fen, depth: depth || 18, multiPv: pvCount, resolve, reject });
         this.processQueue();
       });
     }
@@ -153,7 +154,7 @@
         }
       }
 
-      const cacheKey = `${this.currentTask.fen}_d${this.currentTask.depth}`;
+      const cacheKey = `${this.currentTask.fen}_d${this.currentTask.depth}_pv${this.currentTask.multiPv}`;
       this.fenCache.set(cacheKey, results);
       global.clearTimeout(this.currentTask.timeoutId);
       this.currentTask.resolve(results);
@@ -173,6 +174,14 @@
         const error = new Error("Stockfish analysis timed out.");
         this.rejectAll(error);
       }, this.analysisTimeoutMs);
+
+      // Dynamically update MultiPV if count changed
+      if (nextTask.multiPv && nextTask.multiPv !== this.multiPvCount) {
+        this.multiPvCount = nextTask.multiPv;
+        this.worker.postMessage(
+          `setoption name MultiPV value ${this.multiPvCount}`
+        );
+      }
 
       this.worker.postMessage(`position fen ${nextTask.fen}`);
       this.worker.postMessage(`go depth ${nextTask.depth}`);

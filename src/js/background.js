@@ -68,22 +68,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return undefined;
   }
 
-  ensureOffscreenReceiver()
-    .then(() =>
-      sendRuntimeMessage({
+  (async () => {
+    try {
+      await ensureOffscreenReceiver();
+      const response = await sendRuntimeMessage({
         target: "offscreen",
         action: "analyzeBoard",
         fen: message.fen,
         depth: message.depth,
-      })
-    )
-    .then((response) => {
+        multiPv: message.multiPv,
+      });
       sendResponse(response);
-    })
-    .catch((error) => {
+    } catch (error) {
       console.error("Offscreen analysis error:", error);
       sendResponse({ error: error.message });
-    });
+    }
+  })();
 
   return true;
 });

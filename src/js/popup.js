@@ -37,12 +37,25 @@ async function sendMessageToTab(tab, message) {
 	}
 }
 
+async function getActiveChessTab() {
+	const tabs = await extensionAPI.tabs.query({
+		active: true,
+		currentWindow: true,
+	});
+	return tabs[0];
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
 	try {
-		// Load preferences
-		const result = await extensionAPI.storage.local.get(["autoAnalyzeEnabled", "analysisDepth"]);
+		// Load all preferences
+		const result = await extensionAPI.storage.local.get([
+			"autoAnalyzeEnabled",
+			"analysisDepth",
+			"highlightStyle",
+			"multiPvCount",
+		]);
 
-		// Set depth slider
+		// --- Depth slider ---
 		const depthSlider = document.getElementById("depthSlider");
 		const depthValue = document.getElementById("depthValue");
 		const savedDepth = result.analysisDepth || 14;
@@ -50,29 +63,66 @@ document.addEventListener("DOMContentLoaded", async () => {
 		depthSlider.value = savedDepth;
 		depthValue.textContent = savedDepth;
 
-		// Set button state
+		// --- Highlight style dropdown ---
+		const highlightSelect = document.getElementById("highlightStyle");
+		const savedStyle = result.highlightStyle || "filled";
+		highlightSelect.value = savedStyle;
+
+		// --- MultiPV count dropdown ---
+		const multiPvSelect = document.getElementById("multiPvCount");
+		const savedPvCount = result.multiPvCount || 3;
+		multiPvSelect.value = savedPvCount;
+
+		// --- Analyze button state ---
 		const analyzeButton = document.getElementById("analyze");
 		analyzeButton.classList.toggle("active", result.autoAnalyzeEnabled || false);
 		analyzeButton.textContent = result.autoAnalyzeEnabled ? "Deactivate" : "Activate";
 
-		// Depth slider change handler
+		// === Event Handlers ===
+
+		// Depth slider change
 		depthSlider.addEventListener("input", async () => {
 			const newDepth = parseInt(depthSlider.value, 10);
 			depthValue.textContent = newDepth;
 
 			await extensionAPI.storage.local.set({ analysisDepth: newDepth });
-			console.log("Depth preference saved:", newDepth);
 
-			// If auto-analyze is enabled, notify content script
 			const state = await extensionAPI.storage.local.get("autoAnalyzeEnabled");
 			if (state.autoAnalyzeEnabled) {
-				const tabs = await extensionAPI.tabs.query({
-					active: true,
-					currentWindow: true,
-				});
-				await sendMessageToTab(tabs[0], {
+				const tab = await getActiveChessTab();
+				await sendMessageToTab(tab, {
 					action: "depthChanged",
 					depth: newDepth,
+				});
+			}
+		});
+
+		// Highlight style change
+		highlightSelect.addEventListener("change", async () => {
+			const newStyle = highlightSelect.value;
+			await extensionAPI.storage.local.set({ highlightStyle: newStyle });
+
+			const state = await extensionAPI.storage.local.get("autoAnalyzeEnabled");
+			if (state.autoAnalyzeEnabled) {
+				const tab = await getActiveChessTab();
+				await sendMessageToTab(tab, {
+					action: "highlightStyleChanged",
+					style: newStyle,
+				});
+			}
+		});
+
+		// MultiPV count change
+		multiPvSelect.addEventListener("change", async () => {
+			const newCount = parseInt(multiPvSelect.value, 10);
+			await extensionAPI.storage.local.set({ multiPvCount: newCount });
+
+			const state = await extensionAPI.storage.local.get("autoAnalyzeEnabled");
+			if (state.autoAnalyzeEnabled) {
+				const tab = await getActiveChessTab();
+				await sendMessageToTab(tab, {
+					action: "multiPvChanged",
+					count: newCount,
 				});
 			}
 		});
@@ -81,25 +131,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 	}
 });
 
+// Analyze button toggle
 document.getElementById("analyze").addEventListener("click", async () => {
 	try {
-		const tabs = await extensionAPI.tabs.query({
-			active: true,
-			currentWindow: true,
-		});
-		const activeTab = tabs[0];
+		const activeTab = await getActiveChessTab();
 
-		// Toggle auto-analyze state
 		const result = await extensionAPI.storage.local.get("autoAnalyzeEnabled");
 		const newState = !result.autoAnalyzeEnabled;
 		await extensionAPI.storage.local.set({ autoAnalyzeEnabled: newState });
 
-		// Update button appearance
 		const button = document.getElementById("analyze");
 		button.classList.toggle("active", newState);
 		button.textContent = newState ? "Deactivate" : "Activate";
 
-		// Notify content script
 		await sendMessageToTab(activeTab, {
 			action: "toggleAutoAnalyze",
 			enabled: newState,
@@ -107,4 +151,9 @@ document.getElementById("analyze").addEventListener("click", async () => {
 	} catch (error) {
 		console.error("Error:", error);
 	}
+});
+
+// Reload extension button
+document.getElementById("reloadExtension").addEventListener("click", () => {
+	extensionAPI.runtime.reload();
 });
